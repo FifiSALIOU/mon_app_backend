@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: mon-app-server
+    env: php
+    plan: free
+    branch: main
+    rootDir: .
+    buildCommand: ""
+    startCommand: ""
