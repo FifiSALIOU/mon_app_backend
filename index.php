@@ -1,3 +1,3 @@
 <?php
-echo "Bienvenue sur mon API PHP déployée avec Render.";
+echo "Serveur backend PHP pour l'application Private Space est opérationnel.";
 ?>
