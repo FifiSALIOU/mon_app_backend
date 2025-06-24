@@ -10,7 +10,7 @@ if (!$databaseUrl) {
 $db = parse_url($databaseUrl);
 
 $host = $db['host'];
-$port = $db['port'];
+$port = $db['port'] ?? '5432';
 $user = $db['user'];
 $pass = $db['pass'];
 $dbname = ltrim($db['path'], '/');
