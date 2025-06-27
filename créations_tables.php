@@ -25,11 +25,21 @@ try {
     $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS lastname VARCHAR(100)");
     $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20)");
     
-    // 🔄 Renommer la colonne password en password_hash
-    $pdo->exec("ALTER TABLE users RENAME COLUMN password TO password_hash");
-    
-    // 🔄 Modifier le type de password_hash si nécessaire
-    $pdo->exec("ALTER TABLE users ALTER COLUMN password_hash TYPE VARCHAR(255)");
+    // 🔍 Vérifier si la colonne password existe avant de la renommer
+    $checkPasswordColumn = $pdo->query("
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'password'
+    ");
+
+    if ($checkPasswordColumn->rowCount() > 0) {
+        // 🔄 Renommer seulement si password existe
+        $pdo->exec("ALTER TABLE users RENAME COLUMN password TO password_hash");
+        $pdo->exec("ALTER TABLE users ALTER COLUMN password_hash TYPE VARCHAR(255)");
+    } else {
+        // 🔄 Créer password_hash si elle n'existe pas
+        $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255)");
+    }
 
     echo json_encode(['success' => 'Table users mise à jour avec succès ✅']);
     
