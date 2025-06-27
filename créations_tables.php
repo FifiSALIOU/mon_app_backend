@@ -20,29 +20,19 @@ try {
     $pdo = new PDO("pgsql:host=$host;port=$port;dbname=$dbname", $user, $pass);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // ✅ Création de la table users
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            username VARCHAR(50) NOT NULL UNIQUE,
-            email VARCHAR(100) NOT NULL UNIQUE,
-            password TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    ");
+    // 🔄 Ajouter les colonnes manquantes à la table users
+    $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS firstname VARCHAR(100)");
+    $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS lastname VARCHAR(100)");
+    $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20)");
+    
+    // 🔄 Renommer la colonne password en password_hash
+    $pdo->exec("ALTER TABLE users RENAME COLUMN password TO password_hash");
+    
+    // 🔄 Modifier le type de password_hash si nécessaire
+    $pdo->exec("ALTER TABLE users ALTER COLUMN password_hash TYPE VARCHAR(255)");
 
-    // ✅ Création de la table messages
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS messages (
-            id SERIAL PRIMARY KEY,
-            user_id INTEGER NOT NULL,
-            content TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-    ");
-
-    echo json_encode(['success' => 'Tables users et messages créées avec succès ✅']);
+    echo json_encode(['success' => 'Table users mise à jour avec succès ✅']);
+    
 } catch (PDOException $e) {
     die(json_encode(['error' => 'Erreur PDO : ' . $e->getMessage()]));
 }
