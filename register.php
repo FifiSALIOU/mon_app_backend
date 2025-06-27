@@ -1,16 +1,14 @@
 <?php 
 header('Content-Type: application/json');
-require 'db.php'; // Assure-toi que ce fichier utilise bien pdo_pgsql (vu précédemment)
+require 'db.php';
 
-$data = json_decode(file_get_contents('php://input'), true);
-
-// 🧾 Récupération sécurisée des données
-$firstname = trim($data['firstname'] ?? '');
-$lastname = trim($data['lastname'] ?? '');
-$email = trim($data['email'] ?? '');
-$phone = trim($data['phone'] ?? '');
-$password = $data['password'] ?? '';
-$password_confirm = $data['password_confirm'] ?? '';
+// ⚠️ CORRECTION : Utiliser $_POST pour form-urlencoded
+$firstname = trim($_POST['firstname'] ?? '');
+$lastname = trim($_POST['lastname'] ?? '');
+$email = trim($_POST['email'] ?? '');
+$phone = trim($_POST['phone'] ?? '');
+$password = $_POST['password'] ?? '';
+$password_confirm = $_POST['password_confirm'] ?? '';
 
 // 📋 Vérification des champs requis
 if (!$firstname || !$lastname || !$email || !$phone || !$password || !$password_confirm) {
