@@ -20,6 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Récupération sécurisée des données
 $firstname = trim($data['firstname'] ?? '');
 $lastname = trim($data['lastname'] ?? '');
+$username = trim($data['username'] ?? '');
 $email = trim($data['email'] ?? '');
 $phone = trim($data['phone'] ?? '');
 $password = $data['password'] ?? '';
@@ -29,6 +30,7 @@ $password_confirm = $data['password_confirm'] ?? '';
 $requiredFields = [
     'firstname' => 'Le prénom est obligatoire',
     'lastname' => 'Le nom est obligatoire',
+    'username' => 'Le nom d\'utilisateur est obligatoire',
     'email' => 'L\'email est obligatoire',
     'phone' => 'Le téléphone est obligatoire',
     'password' => 'Le mot de passe est obligatoire',
@@ -76,14 +78,15 @@ if (strlen($password) < 8) {
 $password_hash = password_hash($password, PASSWORD_DEFAULT);
 
 // Requête d'insertion PostgreSQL
-$query = "INSERT INTO users (firstname, lastname, email, phone, password_hash, created_at)
-          VALUES (:firstname, :lastname, :email, :phone, :password_hash, NOW())";
+$query = "INSERT INTO users (firstname, lastname, username, email, phone, password_hash, created_at)
+          VALUES (:firstname, :lastname, :username, :email, :phone, :password_hash, NOW())";
 
 try {
     $stmt = $pdo->prepare($query);
     $stmt->execute([
         ':firstname' => $firstname,
         ':lastname' => $lastname,
+        ':username' => $username,
         ':email' => $email,
         ':phone' => $phone,
         ':password_hash' => $password_hash
