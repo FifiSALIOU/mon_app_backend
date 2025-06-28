@@ -30,14 +30,25 @@ if ($method === 'GET') {
 
     if (!$receiver_id || !$content) {
         http_response_code(400);
-        echo json_encode(['error' => 'Destinataire et contenu requis']);
+        echo json_encode(['error' => 'Destinataire et contenu du message requis']);
         exit;
     }
 
+    // Vérifier si le receiver_id existe
+    $stmtCheckReceiver = $pdo->prepare("SELECT id FROM users WHERE id = ?");
+    $stmtCheckReceiver->execute([$receiver_id]);
+    if (!$stmtCheckReceiver->fetch()) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Destinataire non trouvé']);
+        exit;
+    }
+
+
     $stmt = $pdo->prepare("INSERT INTO messages (sender_id, receiver_id, content) VALUES (?, ?, ?)");
     $stmt->execute([$user_id, $receiver_id, $content]);
-    echo json_encode(['success' => 'Message envoyé']);
+    echo json_encode(['success' => 'Message envoyé avec succès']);
 } else {
     http_response_code(405);
     echo json_encode(['error' => 'Méthode non autorisée']);
 }
+?>

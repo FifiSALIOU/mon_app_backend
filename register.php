@@ -1,11 +1,11 @@
-<?php 
+<?php
 header('Content-Type: application/json');
 require 'db.php'; // Fichier de connexion à la base de données
 
 // Gestion multi-format des données (JSON ou form-urlencoded)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
-    
+
     if (strpos($contentType, 'application/json') !== false) {
         $data = json_decode(file_get_contents('php://input'), true);
     } else {
@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Récupération sécurisée des données
 $firstname = trim($data['firstname'] ?? '');
 $lastname = trim($data['lastname'] ?? '');
-$username = trim($data['username'] ?? '');
+$username = trim($data['username'] ?? ''); // Le username est obligatoire selon votre script
 $email = trim($data['email'] ?? '');
 $phone = trim($data['phone'] ?? '');
 $password = $data['password'] ?? '';
@@ -91,7 +91,7 @@ try {
         ':phone' => $phone,
         ':password_hash' => $password_hash
     ]);
-    
+
     // Succès
     echo json_encode(['success' => 'Inscription réussie ✅', 'user' => [
         'firstname' => $firstname,
@@ -100,17 +100,19 @@ try {
     ]]);
 } catch (PDOException $e) {
     // Gestion spécifique des erreurs de contrainte unique
-    if ($e->getCode() === '23505') {
+    if ($e->getCode() === '23505') { // Code d'erreur pour violation de contrainte unique en PostgreSQL
         if (strpos($e->getMessage(), 'users_email_key') !== false) {
             $error = 'Email déjà utilisé';
+        } elseif (strpos($e->getMessage(), 'users_username_key') !== false) {
+            $error = 'Nom d\'utilisateur déjà utilisé';
         } else {
             $error = 'Donnée en double (contrainte unique violée)';
         }
     } else {
         $error = 'Erreur lors de l\'inscription';
     }
-    
+
     http_response_code(400);
-    echo json_encode(['error' => $error, 'debug' => $e->getMessage()]);
+    echo json_encode(['error' => $error, 'debug' => $e->getMessage()]); // 'debug' pour le développement
 }
 ?>
