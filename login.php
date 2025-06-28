@@ -3,6 +3,9 @@ header('Content-Type: application/json');
 require 'db.php';
 
 $data = json_decode(file_get_contents('php://input'), true);
+file_put_contents('php://stderr', "Contenu reçu : " . file_get_contents('php://input') . "\n");
+file_put_contents('php://stderr', "Data décodée : " . json_encode($data) . "\n");
+
 
 $email = $data['email'] ?? '';
 $password = $data['password'] ?? '';
