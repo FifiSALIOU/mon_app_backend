@@ -1,22 +1,23 @@
-<?php
+<?php 
 header('Content-Type: application/json');
-require 'db.php';
+require 'db.php'; // Fichier de connexion à la base de données
 
-// Lire les données brutes reçues
-$raw = file_get_contents('php://input');
-
-// Débogage (facultatif - pour voir ce qui est reçu)
-file_put_contents('php://stderr', "Reçu brut : $raw\n");
-
-$data = json_decode($raw, true);
-
-// Vérifier que le JSON est bien décodé
-if (!$data || !is_array($data)) {
-    http_response_code(400);
-    echo json_encode(['error' => 'Données JSON invalides']);
+// Gestion multi-format des données (JSON ou form-urlencoded)
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+    
+    if (strpos($contentType, 'application/json') !== false) {
+        $data = json_decode(file_get_contents('php://input'), true);
+    } else {
+        $data = $_POST;
+    }
+} else {
+    http_response_code(405); // Method Not Allowed
+    echo json_encode(['error' => 'Méthode non autorisée']);
     exit;
 }
 
+// Récupération sécurisée des données
 $firstname = trim($data['firstname'] ?? '');
 $lastname = trim($data['lastname'] ?? '');
 $username = trim($data['username'] ?? '');
@@ -102,8 +103,6 @@ try {
     if ($e->getCode() === '23505') {
         if (strpos($e->getMessage(), 'users_email_key') !== false) {
             $error = 'Email déjà utilisé';
-        } elseif (strpos($e->getMessage(), 'users_username_key') !== false) {
-            $error = 'Nom d\'utilisateur déjà utilisé';
         } else {
             $error = 'Donnée en double (contrainte unique violée)';
         }
