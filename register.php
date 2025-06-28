@@ -2,7 +2,20 @@
 header('Content-Type: application/json');
 require 'db.php';
 
-$data = json_decode(file_get_contents('php://input'), true);
+// Lire les données brutes reçues
+$raw = file_get_contents('php://input');
+
+// Débogage (facultatif - pour voir ce qui est reçu)
+file_put_contents('php://stderr', "Reçu brut : $raw\n");
+
+$data = json_decode($raw, true);
+
+// Vérifier que le JSON est bien décodé
+if (!$data || !is_array($data)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Données JSON invalides']);
+    exit;
+}
 
 $firstname = trim($data['firstname'] ?? '');
 $lastname = trim($data['lastname'] ?? '');
