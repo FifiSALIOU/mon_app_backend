@@ -1,5 +1,16 @@
 <?php
-header('Content-Type: application/json');
+// Headers CORS pour permettre les requêtes depuis l'app Android
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Accept');
+header('Content-Type: application/json; charset=utf-8');
+
+// Gestion des requêtes OPTIONS (preflight CORS)
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
 require 'db.php'; // Fichier de connexion à la base de données
 
 // Gestion multi-format des données (JSON ou form-urlencoded)
@@ -7,7 +18,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
 
     if (strpos($contentType, 'application/json') !== false) {
-        $data = json_decode(file_get_contents('php://input'), true);
+        $input = file_get_contents('php://input');
+        $data = json_decode($input, true);
+        
+        // Vérifier si le JSON est valide
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Format JSON invalide']);
+            exit;
+        }
     } else {
         $data = $_POST;
     }
@@ -20,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Récupération sécurisée des données
 $firstname = trim($data['firstname'] ?? '');
 $lastname = trim($data['lastname'] ?? '');
-$username = trim($data['username'] ?? ''); // Le username est obligatoire selon votre script
+$username = trim($data['username'] ?? '');
 $email = trim($data['email'] ?? '');
 $phone = trim($data['phone'] ?? '');
 $password = $data['password'] ?? '';
@@ -53,11 +72,16 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     exit;
 }
 
-// Validation du téléphone (format international simplifié)
-if (!preg_match('/^\+?[0-9]{9,15}$/', $phone)) {
+// Validation du téléphone (format sénégalais amélioré)
+if (!preg_match('/^(\+221|221)?[7][0-9]{8}$/', $phone)) {
     http_response_code(400);
-    echo json_encode(['error' => 'Numéro de téléphone invalide. Format attendu : +221781234567']);
+    echo json_encode(['error' => 'Numéro de téléphone invalide. Format attendu : +221781234567 ou 781234567']);
     exit;
+}
+
+// Normaliser le numéro de téléphone
+if (!str_starts_with($phone, '+221') && !str_starts_with($phone, '221')) {
+    $phone = '+221' . $phone;
 }
 
 // Vérification du mot de passe
@@ -67,23 +91,49 @@ if ($password !== $password_confirm) {
     exit;
 }
 
-// Vérification de la force du mot de passe
+// Vérification de la force du mot de passe (améliorée)
 if (strlen($password) < 8) {
     http_response_code(400);
     echo json_encode(['error' => 'Le mot de passe doit contenir au moins 8 caractères']);
     exit;
 }
 
+// Validation plus stricte du mot de passe
+if (!preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/', $password)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Le mot de passe doit contenir au moins une minuscule, une majuscule et un chiffre']);
+    exit;
+}
+
 // Hachage sécurisé du mot de passe
 $password_hash = password_hash($password, PASSWORD_DEFAULT);
 
-// Requête d'insertion PostgreSQL
-$query = "INSERT INTO users (firstname, lastname, username, email, phone, password_hash, created_at)
-          VALUES (:firstname, :lastname, :username, :email, :phone, :password_hash, NOW())";
-
+// Vérifier les doublons avant insertion
 try {
+    // Vérifier email existant
+    $checkEmail = $pdo->prepare("SELECT id FROM users WHERE email = :email");
+    $checkEmail->execute([':email' => $email]);
+    if ($checkEmail->fetch()) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Email déjà utilisé']);
+        exit;
+    }
+
+    // Vérifier username existant
+    $checkUsername = $pdo->prepare("SELECT id FROM users WHERE username = :username");
+    $checkUsername->execute([':username' => $username]);
+    if ($checkUsername->fetch()) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Nom d\'utilisateur déjà utilisé']);
+        exit;
+    }
+
+    // Insertion de l'utilisateur
+    $query = "INSERT INTO users (firstname, lastname, username, email, phone, password_hash, created_at)
+              VALUES (:firstname, :lastname, :username, :email, :phone, :password_hash, NOW())";
+    
     $stmt = $pdo->prepare($query);
-    $stmt->execute([
+    $result = $stmt->execute([
         ':firstname' => $firstname,
         ':lastname' => $lastname,
         ':username' => $username,
@@ -92,27 +142,42 @@ try {
         ':password_hash' => $password_hash
     ]);
 
-    // Succès
-    echo json_encode(['success' => 'Inscription réussie ✅', 'user' => [
-        'firstname' => $firstname,
-        'lastname' => $lastname,
-        'email' => $email
-    ]]);
-} catch (PDOException $e) {
-    // Gestion spécifique des erreurs de contrainte unique
-    if ($e->getCode() === '23505') { // Code d'erreur pour violation de contrainte unique en PostgreSQL
-        if (strpos($e->getMessage(), 'users_email_key') !== false) {
-            $error = 'Email déjà utilisé';
-        } elseif (strpos($e->getMessage(), 'users_username_key') !== false) {
-            $error = 'Nom d\'utilisateur déjà utilisé';
-        } else {
-            $error = 'Donnée en double (contrainte unique violée)';
-        }
+    if ($result) {
+        $userId = $pdo->lastInsertId();
+        
+        // Succès avec plus d'informations
+        http_response_code(201); // Created
+        echo json_encode([
+            'success' => 'Inscription réussie ✅',
+            'message' => 'Votre compte a été créé avec succès',
+            'user' => [
+                'id' => $userId,
+                'firstname' => $firstname,
+                'lastname' => $lastname,
+                'username' => $username,
+                'email' => $email,
+                'phone' => $phone
+            ]
+        ]);
     } else {
-        $error = 'Erreur lors de l\'inscription';
+        throw new Exception('Erreur lors de l\'insertion');
     }
 
-    http_response_code(400);
-    echo json_encode(['error' => $error, 'debug' => $e->getMessage()]); // 'debug' pour le développement
+} catch (PDOException $e) {
+    // Log de l'erreur pour le développement
+    error_log("Erreur base de données: " . $e->getMessage());
+    
+    http_response_code(500);
+    echo json_encode([
+        'error' => 'Erreur serveur lors de l\'inscription',
+        'debug' => $e->getMessage() // À retirer en production
+    ]);
+} catch (Exception $e) {
+    error_log("Erreur générale: " . $e->getMessage());
+    
+    http_response_code(500);
+    echo json_encode([
+        'error' => 'Erreur interne du serveur'
+    ]);
 }
 ?>
