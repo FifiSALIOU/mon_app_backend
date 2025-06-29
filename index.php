@@ -1,3 +1,2 @@
 <?php
-echo "Serveur backend PHP pour l'application Private Space est opérationnel.";
-?>
+echo "Serveur PHP backend pour Private Space opérationnel.";

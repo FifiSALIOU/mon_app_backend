@@ -1,6 +1,4 @@
 <?php
 session_start();
 session_destroy();
-header("Location: connexion.php");
-exit;
-?>
+echo json_encode(['success' => true]);
