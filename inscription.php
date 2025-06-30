@@ -1,25 +1,38 @@
 <?php
 header('Content-Type: application/json');
-require 'config.php'; // Connexion à la base
+require 'config.php';
 
-// 🔄 Récupérer le corps brut JSON si dispo
-$input = json_decode(file_get_contents("php://input"), true);
+// 🔍 Étape 1 : lire le corps brut de la requête
+$raw = file_get_contents("php://input");
 
-// 🌐 Alternative : récupérer aussi POST si c’est un form classique
-$data = $input ?: $_POST;
+// 🔍 Étape 2 : essayer de le décoder
+$data = json_decode($raw, true);
 
-// 🛡 Vérification des champs
-if (!isset($data["prenom"], $data["nom"], $data["email"], $data["password"])) {
-    http_response_code(400);
-    echo json_encode(["error" => "Champs requis manquants"]);
+// 🔧 Afficher les infos reçues pour debug (temporaire — à retirer ensuite)
+if (!$data) {
+    echo json_encode([
+        "error" => "JSON invalide ou vide",
+        "debug_raw" => $raw
+    ]);
     exit;
 }
 
+// 🛡 Vérification des champs obligatoires
+if (!isset($data["prenom"], $data["nom"], $data["email"], $data["password"])) {
+    echo json_encode([
+        "error" => "Champs requis manquants",
+        "reçu" => $data
+    ]);
+    exit;
+}
+
+// ✅ Récupération des données
 $prenom = $data["prenom"];
 $nom = $data["nom"];
 $email = $data["email"];
 $password = password_hash($data["password"], PASSWORD_DEFAULT);
 
+// 🔄 Insertion dans la base
 try {
     $stmt = $db->prepare("INSERT INTO users (prenom, nom, email, password) VALUES (:prenom, :nom, :email, :password)");
     $stmt->execute([
@@ -30,6 +43,5 @@ try {
     ]);
     echo json_encode(["success" => true]);
 } catch (PDOException $e) {
-    http_response_code(500);
     echo json_encode(["error" => $e->getMessage()]);
 }
