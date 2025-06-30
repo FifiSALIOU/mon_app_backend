@@ -2,46 +2,42 @@
 header('Content-Type: application/json');
 require 'config.php';
 
-// 🔍 Étape 1 : lire le corps brut de la requête
-$raw = file_get_contents("php://input");
+$data = $_POST;
 
-// 🔍 Étape 2 : essayer de le décoder
-$data = json_decode($raw, true);
-
-// 🔧 Afficher les infos reçues pour debug (temporaire — à retirer ensuite)
-if (!$data) {
-    echo json_encode([
-        "error" => "JSON invalide ou vide",
-        "debug_raw" => $raw
-    ]);
-    exit;
-}
-
-// 🛡 Vérification des champs obligatoires
 if (!isset($data["prenom"], $data["nom"], $data["email"], $data["password"])) {
-    echo json_encode([
-        "error" => "Champs requis manquants",
-        "reçu" => $data
-    ]);
+    http_response_code(400);
+    echo json_encode(["error" => "Champs requis manquants"]);
     exit;
 }
 
-// ✅ Récupération des données
-$prenom = $data["prenom"];
-$nom = $data["nom"];
-$email = $data["email"];
-$password = password_hash($data["password"], PASSWORD_DEFAULT);
+$prenom = trim($data["prenom"]);
+$nom = trim($data["nom"]);
+$email = trim($data["email"]);
+$password = $data["password"];
 
-// 🔄 Insertion dans la base
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    http_response_code(400);
+    echo json_encode(["error" => "Email invalide"]);
+    exit;
+}
+
+$hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
 try {
     $stmt = $db->prepare("INSERT INTO users (prenom, nom, email, password) VALUES (:prenom, :nom, :email, :password)");
     $stmt->execute([
         ':prenom' => $prenom,
         ':nom' => $nom,
         ':email' => $email,
-        ':password' => $password
+        ':password' => $hashedPassword
     ]);
     echo json_encode(["success" => true]);
 } catch (PDOException $e) {
-    echo json_encode(["error" => $e->getMessage()]);
+    http_response_code(500);
+    // Gestion d'erreur spécifique (ex: email déjà existant)
+    if (strpos($e->getMessage(), 'duplicate') !== false) {
+        echo json_encode(["error" => "Email déjà utilisé"]);
+    } else {
+        echo json_encode(["error" => $e->getMessage()]);
+    }
 }

@@ -1,22 +1,11 @@
 <?php
-$databaseUrl = getenv("DATABASE_URL");
-
-if (!$databaseUrl) {
-    die(json_encode(["error" => "DATABASE_URL non définie"]));
-}
-
-$dbopts = parse_url($databaseUrl);
-
-$host = $dbopts["host"];
-$port = $dbopts["port"] ?? "5432"; // Valeur par défaut si non fournie
-$user = $dbopts["user"];
-$pass = $dbopts["pass"];
-$dbname = ltrim($dbopts["path"], "/");
-
+// config.php
 try {
-    $dsn = "pgsql:host=$host;port=$port;dbname=$dbname";
-    $db = new PDO($dsn, $user, $pass);
+    $db = new PDO("pgsql:host=host_name;port=5432;dbname=mon_app_backend", "postgres", "password");
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch (PDOException $e) {
-    die(json_encode(["error" => $e->getMessage()]));
+} catch(PDOException $e) {
+    header('Content-Type: application/json');
+    http_response_code(500);
+    echo json_encode(['error' => 'Connexion à la base échouée : ' . $e->getMessage()]);
+    exit;
 }
