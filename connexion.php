@@ -24,6 +24,8 @@ if ($user && password_verify($password, $user['password'])) {
         'success' => true,
         'prenom' => $user['prenom'],
         'nom' => $user['nom']
+        'user_id' => $user['id']
+
     ]);
 } else {
     http_response_code(401);
