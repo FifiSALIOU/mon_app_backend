@@ -1,38 +1,42 @@
 <?php
 header('Content-Type: application/json');
+error_reporting(0); // Évite que des warnings polluent la réponse JSON
 require 'config.php';
-session_start();
 
-if (!isset($_SESSION['user_id'])) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Utilisateur non connecté']);
+$data = $_POST;
+
+if (!isset($data['user_id'], $data['prenom'], $data['nom'])) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Champs requis manquants']);
     exit;
 }
 
-$user_id = $_SESSION['user_id'];
-$data = $_POST;
+$user_id = (int) $data['user_id'];
+$prenom = trim($data['prenom']);
+$nom = trim($data['nom']);
+$password = isset($data['password']) ? $data['password'] : '';
 
 try {
-    if (isset($data['prenom'], $data['nom'])) {
-        $stmt = $db->prepare("UPDATE users SET prenom = :prenom, nom = :nom WHERE id = :id");
+    if (!empty($password)) {
+        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+        $stmt = $db->prepare("UPDATE users SET prenom = :prenom, nom = :nom, password = :password WHERE id = :id");
         $stmt->execute([
-            ':prenom' => trim($data['prenom']),
-            ':nom' => trim($data['nom']),
+            ':prenom' => $prenom,
+            ':nom' => $nom,
+            ':password' => $passwordHash,
             ':id' => $user_id
         ]);
-    }
-
-    if (isset($data['password'])) {
-        $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
-        $stmt = $db->prepare("UPDATE users SET password = :password WHERE id = :id");
+    } else {
+        $stmt = $db->prepare("UPDATE users SET prenom = :prenom, nom = :nom WHERE id = :id");
         $stmt->execute([
-            ':password' => $hashedPassword,
+            ':prenom' => $prenom,
+            ':nom' => $nom,
             ':id' => $user_id
         ]);
     }
 
     echo json_encode(['success' => true]);
-} catch (PDOException $e) {
+} catch (Exception $e) {
     http_response_code(500);
-    echo json_encode(['error' => $e->getMessage()]);
+    echo json_encode(['error' => 'Erreur serveur : ' . $e->getMessage()]);
 }
