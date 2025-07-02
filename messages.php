@@ -3,11 +3,19 @@ header('Content-Type: application/json');
 require 'config.php';
 session_start();
 
-if (!isset($_SESSION['user_id'])) {
+$data = $_POST;
+
+// ✅ Si session vide, on prend le user_id depuis le POST
+if (isset($_SESSION['user_id'])) {
+    $user_id = $_SESSION['user_id'];
+} elseif (isset($data['user_id'])) {
+    $user_id = (int) $data['user_id'];
+} else {
     http_response_code(401);
     echo json_encode(['error' => 'Utilisateur non connecté']);
     exit;
 }
+
 
 $user_id = $_SESSION['user_id'];
 
